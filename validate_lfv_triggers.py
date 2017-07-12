@@ -11,9 +11,17 @@
 import itertools
 import optparse
 import re
+import os
+import inspect
 import string
+import sys
 from collections import defaultdict
 from pprint import pprint
+
+cmd_subfolder = os.path.realpath(os.path.abspath(os.path.join(os.path.split(inspect.getfile( inspect.currentframe() ))[0],"../L1TopoValidation/L1TopoCheck/python/")))
+if cmd_subfolder not in sys.path:
+     sys.path.insert(0, cmd_subfolder)
+
 
 import ROOT as R
 R.PyConfig.IgnoreCommandLineOptions = True # don't let root steal your cmd-line options
@@ -91,16 +99,19 @@ def main():
     angle_binning = (50, -3.5, 3.5)
     for k in possible_outcomes: #initialize the histograms, they will still be empty after 
         histos[k] = {
-            'n_mu'         : R.TH1F('n_mu'+'_'+k         , l+'; N input l1mus'                        , *num_binning),
-            'n_mu6ab'      : R.TH1F('n_mu6ab'+'_'+k      , l+'; N mu6 muons'                          , *num_binning),
-            'n_cand_pairs' : R.TH1F('n_cand_pairs'+'_'+k , l+'; N candidate pairs'                    , *num_binning),
-            'dr_min'       : R.TH1F('dr_min'+'_'+k       , l+'; min #DeltaR best candidate pair'      , *dr_binning),
-            'dr_any'       : R.TH1F('dr_any'+'_'+k       , l+'; #DeltaR any candidate pair'           , *dr_binning),
-            'Phi_mu6'      : R.TH1F('Phi_mu6'+'_'+k      , l+'; Phi angle any mu6 muon'               , *angle_binning),
-            'pt_any'       : R.TH1F('pt_any'+'_'+k       , l+'; #Pt any muon'                         , *pt_binning),
+            'n_mu'          : R.TH1F('n_mu'+'_'+k          , l+'; N input l1mus'                   , *num_binning),
+            'n_mu6ab'       : R.TH1F('n_mu6ab'+'_'+k       , l+'; N mu6 muons'                     , *num_binning),
+            'n_pairs_0dr15' : R.TH1F('n_pairs_0dr15'+'_'+k , l+'; N 0dr15 pairs'                   , *num_binning),
+            'n_pairs_mu6ab' : R.TH1F('n_pairs_mu6ab'+'_'+k , l+'; N mu6 pairs'                     , *num_binning),
+            'n_cand_pairs'  : R.TH1F('n_cand_pairs'+'_'+k  , l+'; N candidate pairs'               , *num_binning),
+            'dr_min'        : R.TH1F('dr_min'+'_'+k        , l+'; min #DeltaR best candidate pair' , *dr_binning),
+            'dr_any'        : R.TH1F('dr_any'+'_'+k        , l+'; #DeltaR any candidate pair'      , *dr_binning),
+            'Phi_mu6'       : R.TH1F('Phi_mu6'+'_'+k       , l+'; Phi angle any mu6 muon'          , *angle_binning),
+            'pt_any'        : R.TH1F('pt_any'+'_'+k        , l+'; #Pt any muon'                    , *pt_binning),
             }
         histos2[k] = R.TH2F('PhiEta_mu6'+'_'+k   , l+'; Phi angle any mu6; Eta angle any mu6' , *2*angle_binning)
 
+    histo_names = [name for name, histo in histos[possible_outcomes[0]].items()]
 
     for iEvent, event in enumerate(chain):
         if num_skip and iEvent<num_skip: continue
@@ -152,7 +163,7 @@ def main():
                    'fail_em_pass_hw' if pass_hw else
                    'fail_em_fail_hw')
         valid_counters[outcome] += 1
-        fill_histos(histos[outcome], histos2[outcome], muons, n_mu, list_mu6ab, n_mu6ab, list_0dr15, n_0dr15) #fill histograms
+        fill_histos(histos[outcome], histos2[outcome], muons, list_mu6ab, list_0dr15) #fill histograms
         if debug and pass_hw:
             print "passed, %d muons" % len(muons)
         iEntry += 1
@@ -166,20 +177,28 @@ def main():
     pprint(dict(valid_counters))
 
     c = R.TCanvas('c') #plot
-    for outcome, hs in histos.items():
-        for hn, h in hs.items():
-            c.cd()
-            c.Clear()
+    
+    for name in histo_names:
+        i = 1
+        c.Clear()
+        c.Divide(2,2)
+        for outcome, hs in histos.items():
+            h = histos[outcome][name]
+            c.cd(i)
             h.Draw('h text')
             c.Update()
-            c.SaveAs(h.GetName()+'.png')
+            i+=1
+        c.SaveAs(name+'.png')
     
+    i=1
+    c.Clear()
+    c.Divide(2,2)
     for outcome, h in histos2.items(): 
-        c.cd()
-        c.Clear()
+        c.cd(i)
         h.Draw('Colz')
         c.Update()
-        c.SaveAs(h.GetName()+'.png')
+        i+=1
+    c.SaveAs(name+'.png')
 
 def algo_0DR15(muons, n_mu): #retuns ordered list with any couple of muons satisfying 0DR15
     couples_0dr15 = []
@@ -205,10 +224,15 @@ def algo_MU6ab(muons): #returns list with all muons satifying MU6 sorted by ener
     return mu6ab_list 
 
     
-def fill_histos(histos, histos2, muons, n_mu, mu6ab_list, n_mu6ab, list_0dr15, n_0dr15): #fills histograms
-   histos['n_mu'        ].Fill(n_mu)
-   histos['n_mu6ab'     ].Fill(n_mu6ab)
-   histos['n_cand_pairs'].Fill(n_0dr15) #number of 0dr15 pairs
+def fill_histos(histos, histos2, muons, list_mu6ab, list_0dr15): #fills histograms
+   n_mu = len(muons)
+   n_mu6= len(list_mu6ab)
+   n_0dr15 = len(list_0dr15)
+   histos['n_mu'         ].Fill(n_mu)
+   histos['n_mu6ab'      ].Fill(n_mu6)
+   histos['n_pairs_0dr15'].Fill(n_mu6*(n_mu6-1.)/2) #number of mu6 pairs
+   histos['n_pairs_mu6ab'].Fill(n_0dr15)            #number of 0dr15 pairs
+   histos['n_cand_pairs' ].Fill(n_mu*(n_mu-1.)/2)   #number of candidate pairs
    
    if n_0dr15: #fill histograms of dr
        histos['dr_min'].Fill(list_0dr15[0][2])
@@ -216,9 +240,9 @@ def fill_histos(histos, histos2, muons, n_mu, mu6ab_list, n_mu6ab, list_0dr15, n
        for couple in list_0dr15:
            histos['dr_any'].Fill(couple[2])
    
-   for muon, pt in mu6ab_list: #fill histograms of angles
+   for muon, pt in list_mu6ab: #fill histograms of angles
        Phi = muon.p4.Phi()
-       histos['Phi_mu6'   ].Fill(Phi)
+       histos['Phi_mu6'].Fill(Phi)
        histos2.Fill(Phi, muon.p4.Eta())
    
    for muon in muons: #fill histogram of momentums

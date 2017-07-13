@@ -95,27 +95,18 @@ def main():
     l = lvl1item_name
     num_binning   = (9 , -0.5, 8.5)
     dr_binning    = (30 , -0.1 , 5.9)
-    binning_0dr15 = (15 , 0.0 , 1.5)
     pt_binning    = (8, 3500.0 , 11500.0) 
-    angle_binning = (28, -3.5, 3.5)
+
     for k in possible_outcomes: #initialize the histograms, they will still be empty after 
         histos[k] = {
-            'n_mu'              : R.TH1F('n_mu'+'_'+k              , l+'; N input l1mus'                   , *num_binning),
-            'n_mu6ab'           : R.TH1F('n_mu6ab'+'_'+k           , l+'; N mu6 muons'                     , *num_binning),
-            'n_pairs_mu6_0dr15' : R.TH1F('n_pairs_mu6_0dr15'+'_'+k , l+'; N mu6_0dr15 pairs'               , *num_binning),
-            'n_pairs_0dr15'     : R.TH1F('n_pairs_0dr15'+'_'+k     , l+'; N 0dr15 pairs'                   , *num_binning),
-            'n_pairs_mu6ab'     : R.TH1F('n_pairs_mu6ab'+'_'+k     , l+'; N mu6 pairs'                     , *num_binning),
-            'n_cand_pairs'      : R.TH1F('n_cand_pairs'+'_'+k      , l+'; N candidate pairs'               , *num_binning),
-            'dr_min'            : R.TH1F('dr_min'+'_'+k            , l+'; min #DeltaR best candidate pair' , *dr_binning),
-            'dr_0dr15'          : R.TH1F('dr_0dr15'+'_'+k          , l+'; #DeltaR 0dr15 pairs'             , *binning_0dr15),
-            'dr_mu6'            : R.TH1F('dr_mu6'+'_'+k            , l+'; #DeltaR mu6 pairs'               , *dr_binning),
-            'dr_mu6_0dr15'      : R.TH1F('dr_mu6_0dr15'+'_'+k      , l+'; #DeltaR mu6_0dr15'               , *binning_0dr15),
-            'dr_any'            : R.TH1F('dr_any'+'_'+k            , l+'; #DeltaR any candidate pair'      , *dr_binning),
-            'Phi_mu6'           : R.TH1F('Phi_mu6'+'_'+k           , l+'; Phi angle any mu6 muon'          , *angle_binning),
-            'pt_0dr15'          : R.TH1F('pt_0dr15'+'_'+k          , l+'; #Pt 0dr15 muons'                 , *pt_binning),            
-            'pt_any'            : R.TH1F('pt_any'+'_'+k            , l+'; #Pt any muon'                    , *pt_binning),
+            'n_mu'              : R.TH1F('n_mu'+'_'+k              , l+'; N input l1mus'              , *num_binning),
+            'n_mu6ab'           : R.TH1F('n_mu6ab'+'_'+k           , l+'; N mu6 muons'                , *num_binning),
+            'n_pairs_mu6_0dr15' : R.TH1F('n_pairs_mu6_0dr15'+'_'+k , l+'; N mu6_0dr15 pairs'          , *num_binning),
+            'n_cand_pairs'      : R.TH1F('n_cand_pairs'+'_'+k      , l+'; N candidate pairs'          , *num_binning),
+            'dr_min'            : R.TH1F('dr_min'+'_'+k            , l+'; min #DeltaR'                , *dr_binning),
+            'dr_any'            : R.TH1F('dr_any'+'_'+k            , l+'; #DeltaR any candidate pair' , *dr_binning),
+            'pt_any'            : R.TH1F('pt_any'+'_'+k            , l+'; #Pt any muon'               , *pt_binning),
             }
-        histos2[k] = R.TH2F('PhiEta_mu6'+'_'+k   , l+'; Phi angle any mu6; Eta angle any mu6' , *2*angle_binning)
 
     histo_names = [name for name, histo in histos[possible_outcomes[0]].items()]
 
@@ -155,10 +146,7 @@ def main():
                  if tob.bcn==0] # only pick the ones from bunch crossing number 0
 
         list_mu6ab = algo_MU6ab(muons) #mu6 list
-        list_0dr15_pairs, list_pairs, list_0dr15= algo_0DR15(muons, muonList=True) #0dr15 couplelist
-        #aux = [muon for muon, Pt in list_mu6ab]
         list_mu6_0dr15_pairs, list_mu6_pairs = algo_0DR15([muon for muon, Pt in list_mu6ab]) #mu6_0dr15 couplelist
-        list_0dr15_mu6 = algo_MU6ab_pairs(list_0dr15_pairs)
 
         pass_emul = len(list_mu6_0dr15_pairs)   #returns true if 2mu6ab and 0dr15
         #pass_emul = len(list_0dr15_mu6) or len(list_mu6_0dr15_pairs)
@@ -169,8 +157,8 @@ def main():
                    'fail_em_pass_hw' if pass_hw else
                    'fail_em_fail_hw')
         valid_counters[outcome] += 1
-        fill_histos(histos[outcome], histos2[outcome], muons, list_mu6ab, list_0dr15,
-                    list_0dr15_pairs, list_pairs, list_mu6_0dr15_pairs, list_mu6_pairs) #fill histograms
+        fill_histos(histos[outcome], muons, list_mu6ab,
+                    list_mu6_0dr15_pairs, list_mu6_pairs) #fill histograms
         if debug and pass_hw:
             print "passed, %d muons" % len(muons)
         iEntry += 1
@@ -202,32 +190,10 @@ def main():
             print('\n')
         
         c.SaveAs(name+'.png')
-    
-    i=0
-    c.Clear()
-    c.Divide(2,2)
-    for outcome, h in histos2.items(): 
-        c.cd(order[i])
-        h.Draw('Colz')
-        c.Update()
-        i+=1
-        if verbose:
-            h.Print()
-    if verbose:
-        print('\n')
-
-    c.SaveAs('PhiEta_mu6.png')
-
-def algo_MU6ab_pairs(list_0dr15_pairs):
-    list_0dr15_mu6 = []
-    for couple in list_0dr15_pairs:
-        if couple[0].p4.Pt()>5000 and couple[1].p4.Pt()>5000:
-            list_0dr15_mu6.append(couple)
-
-    return list_0dr15_mu6
 
 
-def algo_0DR15(muons, muonList=False): #retuns ordered list with any couple of muons satisfying 0DR15
+
+def algo_0DR15(muons): #retuns ordered list with any couple of muons satisfying 0DR15
     couples_any   = []
     n_mu = len(muons)
 
@@ -238,20 +204,6 @@ def algo_0DR15(muons, muonList=False): #retuns ordered list with any couple of m
 
     couples_any.sort(key = lambda couple: couple[2]) #sort list
     couples_0dr15 = [couple for couple in couples_any if couple[2]<1.505] #take only 0dr15
-    
-    if muonList: #return a list of the muons that belong to at least one couple of couples_0dr15
-        list_0dr15 = []
-        for couple in couples_any:
-            if couple[0] in list_0dr15:
-                pass
-            else:
-                list_0dr15.append(couple[0])
-            
-            if couple[1] in list_0dr15:
-                pass
-            else:
-                list_0dr15.append(couple[1])
-        return (couples_0dr15, couples_any, list_0dr15)
 
     return (couples_0dr15, couples_any)
 
@@ -271,8 +223,8 @@ def algo_MU6ab(muons): #returns list with all muons satifying MU6 sorted by ener
     return mu6ab_list 
 
     
-def fill_histos(histos, histos2, muons, list_mu6ab, list_0dr15, list_0dr15_pairs,
-                list_pairs, list_mu6_0dr15_pairs, list_mu6_pairs): #fills histograms
+def fill_histos(histos, muons, list_mu6ab,
+                list_mu6_0dr15_pairs, list_mu6_pairs): #fills histograms
     n_mu = len(muons)
     n_mu6= len(list_mu6ab)
     n_0dr15_pairs = len(list_0dr15_pairs)
@@ -283,23 +235,7 @@ def fill_histos(histos, histos2, muons, list_mu6ab, list_0dr15, list_0dr15_pairs
     histos['n_mu'             ].Fill(n_mu)
     histos['n_mu6ab'          ].Fill(n_mu6)
     histos['n_pairs_mu6_0dr15'].Fill(n_mu6_0dr15_pairs)  #number of mu6_0dr15 pairs
-    # same number obtained here than using the formulas
-    histos['n_pairs_0dr15'    ].Fill(n_0dr15_pairs)      #number of 0dr15 pairs
-    histos['n_pairs_mu6ab'    ].Fill(n_mu6_pairs)        #number of mu6 pairs
     histos['n_cand_pairs'     ].Fill(n_pairs)            #number of candidate pairs
-
-   
-    if n_0dr15_pairs: #fill histograms of dr
-        for couple in list_0dr15_pairs:
-            histos['dr_0dr15'].Fill(couple[2])
-   
-    if n_mu6_0dr15_pairs:
-        for couple in list_mu6_0dr15_pairs:
-            histos['dr_mu6_0dr15'].Fill(couple[2])
-    
-    if n_mu6_pairs: 
-        for couple in list_mu6_pairs:
-            histos['dr_mu6'].Fill(couple[2])
 
     if n_pairs:
         histos['dr_min'].Fill(list_pairs[0][2])
@@ -308,15 +244,6 @@ def fill_histos(histos, histos2, muons, list_mu6ab, list_0dr15, list_0dr15_pairs
    
     for muon in muons: #fill histogram of momentums
         histos['pt_any'].Fill(muon.p4.Pt())
-   
-    for muon in list_0dr15: #fill histogram of momentums
-        histos['pt_0dr15'].Fill(muon.p4.Pt())
-
-  
-    for muon, pt in list_mu6ab: #fill histograms of angles
-        Phi = muon.p4.Phi()
-        histos['Phi_mu6'].Fill(Phi)
-        histos2.Fill(Phi, muon.p4.Eta())
 
 
 class Muon(object):

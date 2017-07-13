@@ -1,6 +1,0 @@
-/eos/atlas/user/g/gerbaudo/l1topo/user.olya.data17_13TeV.00327764.physics_BphysLS.merge.AOD.f836_m1824.8b_tmptrig.root/user.olya.11640704._0000XX.tmptrig.root
-/eos/atlas/user/g/gerbaudo/l1topo/user.olya.data17_13TeV.00327764.physics_BphysLS.merge.AOD.f836_m1824.8b_tmptrig.root/user.olya.11640704._0001XX.tmptrig.root
-/eos/atlas/user/g/gerbaudo/l1topo/user.olya.data17_13TeV.00327764.physics_BphysLS.merge.AOD.f836_m1824.8b_tmptrig.root/user.olya.11640704._0002XX.tmptrig.root
-/eos/atlas/user/g/gerbaudo/l1topo/user.olya.data17_13TeV.00327764.physics_BphysLS.merge.AOD.f836_m1824.8b_tmptrig.root/user.olya.11640704._0003XX.tmptrig.root
-/eos/atlas/user/g/gerbaudo/l1topo/user.olya.data17_13TeV.00327764.physics_BphysLS.merge.AOD.f836_m1824.8b_tmptrig.root/user.olya.11640704._0004XX.tmptrig.root
-/eos/atlas/user/g/gerbaudo/l1topo/user.olya.data17_13TeV.00327764.physics_BphysLS.merge.AOD.f836_m1824.8b_tmptrig.root/user.olya.11640704._0005XX.tmptrig.root

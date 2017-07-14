@@ -198,10 +198,15 @@ def main():
             i+=1
             if verbose:
                 h.Print()
+                print("- Mean     = "+h.GetMean()" +- "+h.GetMeanError())
+                print("- Std Dev  = "+h.GetStdDev()+" +- "+h.GetStdDevError())
+                print("- Skewness = "+h.GetSkewness())
+                print("- Kurtosis = "+h.GetKurtosis())
         if verbose:
-            print('\n')
+            print('\n\n')
         
         c.SaveAs(name+'.png')
+        c.SaveAs(name+'.root')
     
     i=0
     c.Clear()
@@ -217,6 +222,7 @@ def main():
         print('\n')
 
     c.SaveAs('PhiEta_mu6.png')
+    c.SaveAs('PhiEta_mu6.root')
 
 def algo_MU6ab_pairs(list_0dr15_pairs):
     list_0dr15_mu6 = []

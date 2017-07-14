@@ -146,6 +146,7 @@ def main():
                  if tob.bcn==0] # only pick the ones from bunch crossing number 0
 
         list_mu6ab = algo_MU6ab(muons) #mu6 list
+        list_pairs = MakePairs(muons)  #pairs list
         list_mu6_0dr15_pairs, list_mu6_pairs = algo_0DR15([muon for muon, Pt in list_mu6ab]) #mu6_0dr15 couplelist
 
         pass_emul = len(list_mu6_0dr15_pairs)   #returns true if 2mu6ab and 0dr15
@@ -157,7 +158,7 @@ def main():
                    'fail_em_pass_hw' if pass_hw else
                    'fail_em_fail_hw')
         valid_counters[outcome] += 1
-        fill_histos(histos[outcome], muons, list_mu6ab,
+        fill_histos(histos[outcome], muons, list_pairs, list_mu6ab,
                     list_mu6_0dr15_pairs, list_mu6_pairs) #fill histograms
         if debug and pass_hw:
             print "passed, %d muons" % len(muons)
@@ -207,6 +208,16 @@ def algo_0DR15(muons): #retuns ordered list with any couple of muons satisfying 
 
     return (couples_0dr15, couples_any)
 
+def MakePairs(muons):
+    pairs = []
+    n_mu = len(muons)
+    for i in range(n_mu-1):
+        for j in range(i+1, n_mu):
+            dr = muons[i].p4.DeltaR(muons[j].p4)
+            pairs.append((muons[i],muons[j], dr))
+
+    return pairs
+
 
 def algo_MU6ab(muons): #returns list with all muons satifying MU6 sorted by energy
     mu6ab_list = []
@@ -223,15 +234,13 @@ def algo_MU6ab(muons): #returns list with all muons satifying MU6 sorted by ener
     return mu6ab_list 
 
     
-def fill_histos(histos, muons, list_mu6ab,
+def fill_histos(histos, muons, list_pairs, list_mu6ab,
                 list_mu6_0dr15_pairs, list_mu6_pairs): #fills histograms
     n_mu = len(muons)
     n_mu6= len(list_mu6ab)
-    n_0dr15_pairs = len(list_0dr15_pairs)
     n_mu6_pairs = len(list_mu6_pairs)
     n_mu6_0dr15_pairs = len(list_mu6_0dr15_pairs)
     n_pairs = len(list_pairs)
-    n_0dr15 = len (list_0dr15)
     histos['n_mu'             ].Fill(n_mu)
     histos['n_mu6ab'          ].Fill(n_mu6)
     histos['n_pairs_mu6_0dr15'].Fill(n_mu6_0dr15_pairs)  #number of mu6_0dr15 pairs

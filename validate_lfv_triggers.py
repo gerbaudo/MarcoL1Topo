@@ -198,10 +198,10 @@ def main():
             i+=1
             if verbose:
                 h.Print()
-                print("- Mean     = "+h.GetMean()" +- "+h.GetMeanError())
-                print("- Std Dev  = "+h.GetStdDev()+" +- "+h.GetStdDevError())
-                print("- Skewness = "+h.GetSkewness())
-                print("- Kurtosis = "+h.GetKurtosis())
+                print("- Mean     = %.3f +- %.3f"%(h.GetMean(),h.GetMeanError()))
+                print("- Std Dev  = %.3f +- %.3f"%(h.GetStdDev(), h.GetStdDevError()))
+                print("- Skewness = %.3f"%(h.GetSkewness()))
+                print("- Kurtosis = %.3f"%(h.GetKurtosis()))
         if verbose:
             print('\n\n')
         

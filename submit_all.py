@@ -20,12 +20,6 @@ def main():
         # cmd = "bsub -L /bin/bash -q 1nd -o job_log_%d.oe %s" % (iJob, job_script_path)
         cmd = "bsub -L /bin/bash -q 1nh -o job_log_%d.oe %s" % (iLine, job_script_path)
         print cmd
-
-    job_script_path = write_job(iJob = 6,
-                                    input_file='files.txt',
-                                    base_dir = base_dir)
-    cmd = "bsub -L /bin/bash -q 1nh -o job_log_6.oe %s" % (job_script_path)
-    print cmd
     
 
 def write_job(iJob=0, input_file='', base_dir=''):

@@ -197,7 +197,7 @@ def main():
             c.Update()
             i+=1
             if verbose:
-                h.Print()
+                h.Print("all")
                 print("- Mean     = %.3f +- %.3f"%(h.GetMean(),h.GetMeanError()))
                 print("- Std Dev  = %.3f +- %.3f"%(h.GetStdDev(), h.GetStdDevError()))
                 print("- Skewness = %.3f"%(h.GetSkewness()))
@@ -217,7 +217,7 @@ def main():
         c.Update()
         i+=1
         if verbose:
-            h.Print()
+            h.Print("all")
     if verbose:
         print('\n')
 

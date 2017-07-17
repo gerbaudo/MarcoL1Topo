@@ -31,7 +31,7 @@ for name in histos:
 		sum_hist.Draw('h text')
 		c.Update()
 		i+=1
-		sum_hist.Print()
+		sum_hist.Print("all")
 		print("- Mean     = %.3f +- %.3f"%(sum_hist.GetMean(),sum_hist.GetMeanError()))
 		print("- Std Dev  = %.3f +- %.3f"%(sum_hist.GetStdDev(), sum_hist.GetStdDevError()))
 		print("- Skewness = %.3f"%(sum_hist.GetSkewness()))
@@ -63,7 +63,7 @@ for name in histos:
 		sum_hist.Draw('Colz')
 		c.Update()
 		i+=1
-		sum_hist.Print()
+		sum_hist.Print("all")
 	
 	print('\n')
 

@@ -178,6 +178,21 @@ def main():
         if debug and pass_hw:
             print "passed, %d muons" % len(muons)
         iEntry += 1
+        #print some data to check
+        if pass_hw and not pass_emul:
+             for pair in list_pairs:
+                  if pair[3]: #condition for Phi>3 for at least one member of the pair
+                       print("muon 1")
+                       print("Pt  = {:.2f}".format(pair[0].p4.Pt()))
+                       print("Phi = {:.2f}".format(pair[0].p4.Phi()))
+                       print("Eta = {:.2f}".format(pair[0].p4.Eta()))
+                       print("muon ")
+                       print("Pt  = {:.2f}".format(pair[0].p4.Pt()))
+                       print("Phi = {:.2f}".format(pair[0].p4.Phi()))
+                       print("Eta = {:.2f}".format(pair[0].p4.Eta()))
+                       print("\nDr  = {:.2f}".format(pair[2]))
+                       print("DPhi = {:.2f}".format(pair[0].p4.DeltaPhi(pair[1].p4)))
+                       print("DPhibad = {:.2f}".format(pair[0].p4.Phi()-pair[1].p4.Phi()))
 
 
     print 'algo_counters:'
@@ -197,11 +212,11 @@ def main():
     total_pass_em = p_p+p_f
     total_pass_hw = f_p+p_p
     total_discordance = 100.*(f_p+p_f)/total_imputs
-    pass_discordance = 100.*p_f/total_pass_em
-    fail_discordance = 100.*f_p/total_fail_em
+    pass_em_discordance = 100.*p_f/total_pass_em
+    pass_hw_discordance = 100.*f_p/total_pass_hw
     print('  total   error {:.2f}%'.format(total_discordance))
-    print('  em pass error {:.2f}%'.format(pass_discordance))
-    print('  hw pass error {:.2f}%'.format(fail_discordance))
+    print('  em pass error {:.2f}%'.format(pass_em_discordance))
+    print('  hw pass error {:.2f}%'.format(pass_hw_discordance))
 
     c = R.TCanvas('c')
     order = [2,4,3,1]
@@ -260,11 +275,11 @@ def algo_0DR15(muons, muonList=False): #retuns ordered list with any couple of m
     for i in range(n_mu-1): #check all muon couples to see if Delta r is lower than 1.5
         for j in range(i+1,n_mu):
             dr = muons[i].p4.DeltaR(muons[j].p4)
-            Phi3 = muons[i].p4.Phi()>3 or muons[j].p4.Phi()>3 
+            Phi3 = muons[i].p4.Phi()>3 or muons[j].p4.Phi()>3  #true if the Phi value of any of the muons is greater than 3.
             couples_any.append((muons[i],muons[j], dr, Phi3))
 
     couples_any.sort(key = lambda couple: couple[2]) #sort list
-    couples_0dr15 = [couple for couple in couples_any if (not couple[3] and couple[2]<1.505) or (couple[3] and (couple[2]<1.505 or (couple[2]>2.75 and couple[2]<3.2)))] #take only 0dr15
+    couples_0dr15 = [couple for couple in couples_any if (not couple[3] and couple[2]<1.505) or (couple[3] and (couple[2]<1.505 or (couple[2]>2.75 and couple[2]<3.2)))] #take only 0dr15, different algorithm for Phi>3
     
     if muonList: #return a list of the muons that belong to at least one couple of couples_0dr15
         list_0dr15 = []
@@ -283,7 +298,7 @@ def algo_0DR15(muons, muonList=False): #retuns ordered list with any couple of m
     return (couples_0dr15, couples_any)
 
 
-def algo_PHI3(muons): #returns 1 if there is a muon satisfying PHI3 o otherwise
+def algo_PHI3(muons): #returns 1 if there is a muon satisfying PHI3 0 otherwise
     for muon in muons:
         if muon.p4.Phi()>3:
             return 1
@@ -318,7 +333,7 @@ def fill_histos(histos, histos2, muons, list_mu6ab, list_0dr15, list_0dr15_pairs
     histos['n_mu'             ].Fill(n_mu)
     histos['n_mu6ab'          ].Fill(n_mu6)
     histos['n_pairs_mu6_0dr15'].Fill(n_mu6_0dr15_pairs)  #number of mu6_0dr15 pairs
-    # same number obtained here than using the formulas
+    # same number obtained here than using the formula n*(n-1)/2
     histos['n_pairs_0dr15'    ].Fill(n_0dr15_pairs)      #number of 0dr15 pairs
     histos['n_pairs_mu6ab'    ].Fill(n_mu6_pairs)        #number of mu6 pairs
     histos['n_cand_pairs'     ].Fill(n_pairs)            #number of candidate pairs
@@ -340,6 +355,7 @@ def fill_histos(histos, histos2, muons, list_mu6ab, list_0dr15, list_0dr15_pairs
         histos['dr_min'].Fill(list_pairs[0][2])
         for couple in list_pairs:
             histos['dr_any'].Fill(couple[2])
+
    
     for muon in muons: #fill histogram of momentums
         histos['pt_any'].Fill(muon.p4.Pt())

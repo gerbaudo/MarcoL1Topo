@@ -112,6 +112,7 @@ def main():
             'dr_mu6_0dr15'      : R.TH1F('dr_mu6_0dr15'+'_'+k      , l+'; #DeltaR mu6_0dr15'               , *binning_0dr15),
             'dr_any'            : R.TH1F('dr_any'+'_'+k            , l+'; #DeltaR any candidate pair'      , *dr_binning),
             'Phi_mu6'           : R.TH1F('Phi_mu6'+'_'+k           , l+'; Phi angle any mu6 muon'          , *angle_binning),
+            'Eta_mu6'           : R.TH1F('Eta_mu6'+'_'+k           , l+'; Eta angle any mu6 muon'          , *angle_binning),
             'pt_0dr15'          : R.TH1F('pt_0dr15'+'_'+k          , l+'; #Pt 0dr15 muons'                 , *pt_binning),            
             'pt_any'            : R.TH1F('pt_any'+'_'+k            , l+'; #Pt any muon'                    , *pt_binning),
             }
@@ -151,10 +152,13 @@ def main():
         #         print "[%d] (%f, %f)"%(i, tt.eta(), tt.phi())
 
         # these are EnhancedMuonTOB objects
-        muons = [Muon(tob.pt, tob.eta, tob.phi, tob.pt) for tob in event.hdwMuonTOB
+        muons = [Muon(tob.pt, tob.eta, tob.phi) for tob in event.hdwMuonTOB
                  if tob.bcn==0] # only pick the ones from bunch crossing number 0
 
         list_mu6ab = algo_MU6ab(muons) #mu6 list
+        #Phi3 = algo_PHI3(muons)
+        #if not Phi3:
+        #    continue
         list_0dr15_pairs, list_pairs, list_0dr15= algo_0DR15(muons, muonList=True) #0dr15 couplelist
         #aux = [muon for muon, Pt in list_mu6ab]
         list_mu6_0dr15_pairs, list_mu6_pairs = algo_0DR15([muon for muon, Pt in list_mu6ab]) #mu6_0dr15 couplelist
@@ -183,6 +187,22 @@ def main():
     print 'valid counters:'
     pprint(dict(valid_counters))
 
+    #print errors
+    p_p=valid_counters['pass_em_pass_hw']
+    p_f=valid_counters['pass_em_fail_hw']
+    f_p=valid_counters['fail_em_pass_hw']
+    f_f=valid_counters['fail_em_fail_hw']
+
+    total_imputs = p_p+p_f+f_p+f_f
+    total_pass_em = p_p+p_f
+    total_pass_hw = f_p+p_p
+    total_discordance = 100.*(f_p+p_f)/total_imputs
+    pass_discordance = 100.*p_f/total_pass_em
+    fail_discordance = 100.*f_p/total_fail_em
+    print('  total   error {:.2f}%'.format(total_discordance))
+    print('  em pass error {:.2f}%'.format(pass_discordance))
+    print('  hw pass error {:.2f}%'.format(fail_discordance))
+
     c = R.TCanvas('c')
     order = [2,4,3,1]
     
@@ -197,6 +217,7 @@ def main():
             c.Update()
             i+=1
             if verbose:
+                print('\n')
                 h.Print("all")
                 print("- Mean     = %.3f +- %.3f"%(h.GetMean(),h.GetMeanError()))
                 print("- Std Dev  = %.3f +- %.3f"%(h.GetStdDev(), h.GetStdDevError()))
@@ -232,7 +253,6 @@ def algo_MU6ab_pairs(list_0dr15_pairs):
 
     return list_0dr15_mu6
 
-
 def algo_0DR15(muons, muonList=False): #retuns ordered list with any couple of muons satisfying 0DR15
     couples_any   = []
     n_mu = len(muons)
@@ -240,10 +260,11 @@ def algo_0DR15(muons, muonList=False): #retuns ordered list with any couple of m
     for i in range(n_mu-1): #check all muon couples to see if Delta r is lower than 1.5
         for j in range(i+1,n_mu):
             dr = muons[i].p4.DeltaR(muons[j].p4)
-            couples_any.append((muons[i],muons[j], dr))
+            Phi3 = muons[i].p4.Phi()>3 or muons[j].p4.Phi()>3 
+            couples_any.append((muons[i],muons[j], dr, Phi3))
 
     couples_any.sort(key = lambda couple: couple[2]) #sort list
-    couples_0dr15 = [couple for couple in couples_any if couple[2]<1.505] #take only 0dr15
+    couples_0dr15 = [couple for couple in couples_any if (not couple[3] and couple[2]<1.505) or (couple[3] and (couple[2]<1.505 or (couple[2]>2.75 and couple[2]<3.2)))] #take only 0dr15
     
     if muonList: #return a list of the muons that belong to at least one couple of couples_0dr15
         list_0dr15 = []
@@ -260,6 +281,14 @@ def algo_0DR15(muons, muonList=False): #retuns ordered list with any couple of m
         return (couples_0dr15, couples_any, list_0dr15)
 
     return (couples_0dr15, couples_any)
+
+
+def algo_PHI3(muons): #returns 1 if there is a muon satisfying PHI3 o otherwise
+    for muon in muons:
+        if muon.p4.Phi()>3:
+            return 1
+    return 0
+
 
 
 def algo_MU6ab(muons): #returns list with all muons satifying MU6 sorted by energy
@@ -321,16 +350,19 @@ def fill_histos(histos, histos2, muons, list_mu6ab, list_0dr15, list_0dr15_pairs
   
     for muon, pt in list_mu6ab: #fill histograms of angles
         Phi = muon.p4.Phi()
+        Eta = muon.p4.Eta()
         histos['Phi_mu6'].Fill(Phi)
-        histos2.Fill(Phi, muon.p4.Eta())
+        histos['Eta_mu6'].Fill(Eta)
+        histos2.Fill(Phi, Eta)
 
 
 class Muon(object):
-    def __init__(self, pt, eta, phi, energy):
-         #tlv = R.TLorentzVector() # four-momentum
-         #self.p4 = tlv.SetPtEtaPhiE(pt, eta, phi, energy)
-         self.p4 = R.TLorentzVector() # four-momentum
-         self.p4.SetPtEtaPhiE(pt, eta, phi, energy)
+    def __init__(self, pt, eta, phi):
+        muon_mass = 105.65
+        #tlv = R.TLorentzVector() # four-momentum
+        #self.p4 = tlv.SetPtEtaPhiE(pt, eta, phi, energy)
+        self.p4 = R.TLorentzVector() # four-momentum
+        self.p4.SetPtEtaPhiM(pt, eta, phi, muon_mass)
 
 def algo_bit_names_and_numbers():
     "Bits stored in the TBits for each L1 algorithm"

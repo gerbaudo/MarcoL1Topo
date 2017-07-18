@@ -155,7 +155,9 @@ def main():
         #         print "[%d] (%f, %f)"%(i, tt.eta(), tt.phi())
 
         # these are EnhancedMuonTOB objects
-        muons = [Muon(tob.pt, tob.eta, tob.phi) for tob in event.hdwMuonTOB
+#        muons = [Muon(tob.pt, tob.eta, tob.phi) for tob in event.hdwMuonTOB
+#                 if tob.bcn==0] # only pick the ones from bunch crossing number 0
+        muons = [Muon(tob.pt, tob.eta, tob.phi) for tob in event.emuMuonTOB
                  if tob.bcn==0] # only pick the ones from bunch crossing number 0
 
         list_mu6ab = algo_MU6ab(muons) #mu6 list
@@ -164,7 +166,7 @@ def main():
 #            continue
         list_0dr15_pairs, list_pairs, list_0dr15= algo_0DR15(muons, muonList=True) #0dr15 couplelist
         #aux = [muon for muon, Pt in list_mu6ab]
-        list_mu6_0dr15_pairs, list_mu6_pairs = algo_0DR15([muon for muon, Pt in list_mu6ab]) #mu6_0dr15 couplelist
+        list_mu6_0dr15_pairs, list_mu6_pairs = algo_0DR15([muon for muon, Pt in list_mu6ab], printout = pass_hw) #mu6_0dr15 couplelist
         list_0dr15_mu6 = algo_MU6ab_pairs(list_0dr15_pairs)
 
         pass_emul = len(list_mu6_0dr15_pairs)   #returns true if 2mu6ab and 0dr15
@@ -178,6 +180,12 @@ def main():
         valid_counters[outcome] += 1
         fill_histos(histos[outcome], histos2[outcome], muons, list_mu6ab, list_0dr15,
                     list_0dr15_pairs, list_pairs, list_mu6_0dr15_pairs, list_mu6_pairs) #fill histograms
+        if outcome == 'fail_em_pass_hw':
+            print ("runNumber = {0:d}  eventNumber = {1:d}".format(event.runNumber, event.eventNumber))
+            for i, mu in enumerate(event.emuMuonTOB):
+                print("<{:d}>: Pt = {:.2f} Phi = {:.2f} Eta = {:.2f}".format(i, mu.pt, mu.phi, mu.eta))
+
+
         if debug and pass_hw:
             print "passed, %d muons" % len(muons)
         iEntry += 1
@@ -278,7 +286,7 @@ def algo_MU6ab_pairs(list_0dr15_pairs):
 
     return list_0dr15_mu6
 
-def algo_0DR15(muons, muonList=False): #retuns ordered list with any couple of muons satisfying 0DR15
+def algo_0DR15(muons, muonList=False, printout = False): #retuns ordered list with any couple of muons satisfying 0DR15
     couples_any   = []
     n_mu = len(muons)
     tau=2*pi
@@ -287,7 +295,11 @@ def algo_0DR15(muons, muonList=False): #retuns ordered list with any couple of m
         for j in range(i+1,n_mu):
             dr = muons[i].p4.DeltaR(muons[j].p4)
 #            Phi1 = muons[i].p4.Phi()
+#            if Phi1 >3:
+#                Phi1+=pi
 #            Phi2 = muons[j].p4.Phi()
+#            if Phi2 >3:
+#                Phi2+=pi
 #            DPhi = (Phi1-Phi2)%tau
 #            if DPhi>tau/2:
 #                DPhi=tau-DPhi
@@ -295,6 +307,7 @@ def algo_0DR15(muons, muonList=False): #retuns ordered list with any couple of m
 #            DPhi = int(10*DPhi)/10.
 #            Eta1 = muons[i].p4.Eta()
 #            Eta2 = muons[j].p4.Eta()
+#            DEta = Eta1-Eta2
 #            DEta = int(10*(Eta1-Eta2))/10.
 #            dr = sqrt(DEta**2+DPhi**2) 
 
@@ -311,25 +324,23 @@ def algo_0DR15(muons, muonList=False): #retuns ordered list with any couple of m
             couples_any.append((muons[i],muons[j], dr, Phi3))
 
     couples_any.sort(key = lambda couple: couple[2]) #sort list
-    couples_0dr15 = [couple for couple in couples_any if (not couple[3] and couple[2]<1.505) or (couple[3] and (couple[2]<1.505 or (couple[2]>2.75 and couple[2]<3.2)))] #take only 0dr15, different algorithm for Phi>3
-#    if not muonList:
-#        for couple in couples_any:
-#            if (couple[3] and (couple[2]<1.505 or (couple[2]>2.75 and couple[2]<3.2))):
-#                #print some data to check
-#                print("muon 1")
-#                print("Pt  = {:.2f}".format(couple[0].p4.Pt()))
-#                print("Phi = {:.2f}".format(couple[0].p4.Phi()))
-#                print("Eta = {:.2f}".format(couple[0].p4.Eta()))
-#                print("muon 2")
-#                print("Pt  = {:.2f}".format(couple[1].p4.Pt()))
-#                print("Phi = {:.2f}".format(couple[1].p4.Phi()))
-#                print("Eta = {:.2f}".format(couple[1].p4.Eta()))
-#                print("\nDr  = {:.2f}".format(couple[2]))
-#                DPhi = couple[0].p4.DeltaPhi(couple[1].p4)
-#                print("DPhi = {:.2f}".format(DPhi))
+#    couples_0dr15 = [couple for couple in couples_any if (not couple[3] and couple[2]<1.505) or (couple[3] and (couple[2]<1.505 or (couple[2]>2.75 and couple[2]<3.2)))] #take only 0dr15, different algorithm for Phi>3
+    couples_0dr15 = [couple for couple in couples_any if couple[2]<1.505] #take only 0dr15 and something else
+    if not len(couples_0dr15) and printout:
+        for couple in couples_any:
+            #print some data to check
+            mu1 = couple[0].p4
+            mu2 = couple[1].p4
+            dr = couple[2]
+            print("muon1: Pt = {0:.2f} Phi = {1:.2f} Eta = {2:.2f}".format(mu1.Pt(), mu1.Phi(), mu1.Eta()))
+            print("muon2: Pt = {0:.2f} Phi = {1:.2f} Eta = {2:.2f}".format(mu2.Pt(), mu2.Phi(), mu2.Eta()))
+            print("Dr  = {:.2f}".format(dr))
+            DPhi = couple[0].p4.DeltaPhi(couple[1].p4)
+            print("DPhi = {:.2f}".format(DPhi))
 #                DPhiBad = (couple[0].p4.Phi()-couple[1].p4.Phi())%(2*pi)
 #                print("DPhibad = {:.2f}\n\n".format(DPhiBad))
-#    couples_0dr15 = [couple for couple in couples_any if couple[2]<1.505 or couple[3]] #take only 0dr15 and something else
+        print(len(couples_any))
+        print("--------------")
     
     if muonList: #return a list of the muons that belong to at least one couple of couples_0dr15
         list_0dr15 = []

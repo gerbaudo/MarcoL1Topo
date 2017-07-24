@@ -133,6 +133,16 @@ def main():
     out_file.Write()
     out_file.Close()
  
+def number_of_entries_to_process(available_entries, options=None):
+    N = available_entries
+    n = options.num_events
+    s = options.skip_events
+    to_process = (min([N, n, N-s]) if n and s else
+                  min([N, n]) if n else
+                  N-s if s else
+                  N)
+    to_process = to_process if to_process > 0 else 0
+    return to_process
 
 if __name__=='__main__':
     main()

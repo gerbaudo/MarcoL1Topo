@@ -39,8 +39,6 @@ TauTob = R.L1Topo.offline.TauTOB
 import utils
 
 def main():
-    difference_dphi = 0   #CHANGE
-    totat_dphi = 0
     usage = ("Usage : %prog [options] filename"
              "\n Examples :"
              "\n %prog  -v tmptrig.root"
@@ -49,6 +47,7 @@ def main():
     parser = optparse.OptionParser(usage = usage)
     parser.add_option('-n', '--num-events', default=None, type=int, help='number of events to process (default all)')
     parser.add_option('-s', '--skip-events', default=None, type=int, help='number of events to skip (default none)')
+    parser.add_option('--skip-overflow', action='store_true', help='do not use events with overflow bits')
     parser.add_option('-v', '--verbose', default=False, action='store_true')
     parser.add_option('-d', '--debug', default=False, action='store_true')
     parser.add_option('-t', '--treename', default='trig')
@@ -100,14 +99,31 @@ def main():
                        for k in algorithm_names}
     hist_hdwpasses = {k : R.TH1F('hdwpass_vs_n_jets_'+k, k+';N JetTOB; N hdw==1', *jet_binning)
                       for k in algorithm_names}
+    sim_bit_number = R.L1Topo.TOPOSIM # see L1TopoCheck/AlgorithmBits.h
+    hdw_bit_number = R.L1Topo.FIRED
+    ovf_bit_number = R.L1Topo.OVERFLOWN
+    print 'Checking these algorithm bits:'
+    print('sim_bit_number ',sim_bit_number)
+    print('hdw_bit_number ',hdw_bit_number)
+    print('ovf_bit_number ',ovf_bit_number)
 
     for algorithm_name in algorithm_names:
         branch_name = algorithm_name.replace('-', '_') + '_0_aBits'
         elist_name = 'elist_'+algorithm_name
-        selection = branch_name+'.TestBitNumber(4) != '+branch_name+'.TestBitNumber(5)'
+        selection = ("{bn:s}.TestBitNumber({sbn:d})"
+                     " != "
+                     "{bn:s}.TestBitNumber({hbn:d})").format(**{'bn':branch_name,
+                                                                'sbn':sim_bit_number,
+                                                                'hbn':hdw_bit_number})
+        selection_skip_overflow = "{bn:s}.TestBitNumber({obn:d})==0".format(**{'bn':branch_name,
+                                                                               'obn':ovf_bit_number})
+        selection = (selection+' && '+selection_skip_overflow) if options.skip_overflow else selection
+
+        print 'selection: ',selection
         chain.Draw('>> '+elist_name, selection, 'entrylist')
         event_list = R.gDirectory.Get(elist_name)
         chain.SetEntryList(event_list)
+        print 20*'-'
         print branch_name+' : got entry list with ',event_list.GetN(),' entries'
         print 20*'-'
         tprof = tprof_mismatches[algorithm_name]
@@ -120,11 +136,14 @@ def main():
             tprof.Fill(n_jets, 1.0)
             h_mis.Fill(n_jets)
             print ("runNumber = {0:d}  eventNumber = {1:d}".format(chain.runNumber, chain.eventNumber))
-            print 'bit 4 (SIM) ', aBits.TestBitNumber(4),' bit 5 (CTP_TBP)', aBits.TestBitNumber(5)
+            print 'bit ',sim_bit_number,' (SIM) ', aBits.TestBitNumber(sim_bit_number),' bit ',hdw_bit_number,' (HDW)', aBits.TestBitNumber(hdw_bit_number)
             print 'jetTobs[%d]' % len(jetTobs)
             for i, jt in enumerate(jetTobs):
                 print "[%d] (%f, %f, %f)"%(i, jt.energy8x8(), jt.eta(), jt.phi())
-    out_file = R.TFile('miss_vs_njets.root', 'recreate')
+
+    out_filename = ('miss_vs_njets_no_ovf.root' if options.skip_overflow else
+                    'miss_vs_njets.root')
+    out_file = R.TFile(out_filename, 'recreate')
     out_file.cd()
     # for t in tprof_mismatches.values():
     #     t.SetDirectory(out_file)

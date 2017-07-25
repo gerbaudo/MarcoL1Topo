@@ -23,7 +23,7 @@ if cmd_subfolder not in sys.path:
 
 import ROOT as R
 R.PyConfig.IgnoreCommandLineOptions = True # don't let root steal your cmd-line options
-R.gROOT.SetBatch(1)                        # go batch!
+# R.gROOT.SetBatch(1)                        # go batch!
 R.gErrorIgnoreLevel = 9999                 # suppress messages about missing dict
                                            # (can't get rid of the 'duplicate' ones?)
 R.gROOT.ProcessLine('#include "L1TopoCheck/TriggerBits.h"')
@@ -81,16 +81,16 @@ def main():
     # (possibly) different FPGA U1/U2 jet fibre order") with
     # egrep '(.*INVM.*-AJ30s6-AJ20s6|HT.*-J.*s5.ETA.*|0DET10-Js1-Js2|10MINDPHI-J.*s2-XE50.*|.*MINDPHI-AJj20s6-XE0)' ../L1TopoValidation/L1TopoCheck/share/algorithm_labels.txt
     algorithm_names = ['900INVM9999-AJ30s6-AJ20s6',
-                       '800INVM9999-AJ30s6-AJ20s6',
-                       '700INVM9999-AJ30s6-AJ20s6',
-                       '500INVM9999-AJ30s6-AJ20s6',
-                       '400INVM9999-AJ30s6-AJ20s6',
-                       '300INVM9999-AJ30s6-AJ20s6',
-                       '200INVM9999-AJ30s6-AJ20s6',
-                       '10MINDPHI-J20s2-XE50',
-                       '100INVM9999-AJ30s6-AJ20s6',
-                       'HT150-J20s5.ETA31',
-                       'HT190-J15s5.ETA21',
+                       # '800INVM9999-AJ30s6-AJ20s6',
+                       # '700INVM9999-AJ30s6-AJ20s6',
+                       # '500INVM9999-AJ30s6-AJ20s6',
+                       # '400INVM9999-AJ30s6-AJ20s6',
+                       # '300INVM9999-AJ30s6-AJ20s6',
+                       # '200INVM9999-AJ30s6-AJ20s6',
+                       # '10MINDPHI-J20s2-XE50',
+                       # '100INVM9999-AJ30s6-AJ20s6',
+                       # 'HT150-J20s5.ETA31',
+                       # 'HT190-J15s5.ETA21',
                        ]
     jet_binning   = (13 , -0.5, 12.5)
     tprof_mismatches = {k : R.TProfile('n_mismatches_vs_n_jets_'+k, k+';N JetTOB; N hdw!=sim', *jet_binning)
@@ -110,19 +110,17 @@ def main():
     for algorithm_name in algorithm_names:
         branch_name = algorithm_name.replace('-', '_') + '_0_aBits'
         elist_name = 'elist_'+algorithm_name
-        selection = ("{bn:s}.TestBitNumber({sbn:d})"
-                     " != "
-                     "{bn:s}.TestBitNumber({hbn:d})").format(**{'bn':branch_name,
-                                                                'sbn':sim_bit_number,
-                                                                'hbn':hdw_bit_number})
-        selection_skip_overflow = "{bn:s}.TestBitNumber({obn:d})==0".format(**{'bn':branch_name,
+        selection = ("({bn:s}.TestBitNumber({sbn:d}) != {bn:s}.TestBitNumber({hbn:d}))"
+                     ).format(**{'bn':branch_name,
+                                 'sbn':sim_bit_number,
+                                 'hbn':hdw_bit_number})
+        selection_skip_overflow = "({bn:s}.TestBitNumber({obn:d})==0)".format(**{'bn':branch_name,
                                                                                'obn':ovf_bit_number})
         selection = (selection+' && '+selection_skip_overflow) if options.skip_overflow else selection
 
         print 'selection: ',selection
         chain.Draw('>> '+elist_name, selection, 'entrylist')
         event_list = R.gDirectory.Get(elist_name)
-        chain.SetEntryList(event_list)
         print 20*'-'
         print branch_name+' : got entry list with ',event_list.GetN(),' entries'
         print 20*'-'
@@ -138,9 +136,34 @@ def main():
             print ("runNumber = {0:d}  eventNumber = {1:d}".format(chain.runNumber, chain.eventNumber))
             print 'bit ',sim_bit_number,' (SIM) ', aBits.TestBitNumber(sim_bit_number),' bit ',hdw_bit_number,' (HDW)', aBits.TestBitNumber(hdw_bit_number)
             print 'jetTobs[%d]' % len(jetTobs)
+            print "[ n] energy8x8, eta, phi, crateNumber, jetNumber, roiFrame (3b), localCoordinates (2b)"
             for i, jt in enumerate(jetTobs):
-                print "[%d] (%f, %f, %f)"%(i, jt.energy8x8(), jt.eta(), jt.phi())
-
+                # print "[%d] (%f, %f, %f)"%(i, jt.energy8x8(), jt.eta(), jt.phi())
+                print "[{:d}] {:f}, {:f}, {:f}, {:d}, {:d}, {:03b}, {:02b}".format(i, jt.energy8x8(), jt.eta(), jt.phi(), jt.crateNumber(), jt.jetNumber(), jt.roiFrame(), jt.localCoordinates())
+                jt.p4 = R.TLorentzVector()
+                jt.p4.SetPtEtaPhiM(jt.energy8x8(), jt.eta(), jt.phi(), 0.0)
+            jets_crate0 = [jt for jt in jetTobs if jt.crateNumber()==0]
+            jets_crate1 = [jt for jt in jetTobs if jt.crateNumber()==1]
+            jets01 = jets_crate0[:] + jets_crate1[:]
+            jets10 = jets_crate1[:] + jets_crate0[:]
+            def passes_900INVM9999_AJ30s6_AJ20s6(jets_coll):
+                 'emulate 900INVM9999_AJ30s6_AJ20s6'
+                 aj30s6 = [j for j in jets_coll if j.energy8x8()>=30][:6]
+                 aj20s6 = [j for j in jets_coll if j.energy8x8()>=20][:6]
+                 masses = [(j1.p4 + j2.p4).M() for j1 in aj30s6 for j2 in aj20s6 if j1!=j2]
+                 masses.sort()
+                 largest_mass = masses[-1] if masses else 0.0
+                 pass_emul = largest_mass>900.0
+                 print 'from ',len(jets_coll),' jets got ',len(aj30s6),' aj30s6 and ',len(aj20s6),' aj20s6, largest mass ',largest_mass
+                 return pass_emul, largest_mass
+            emul_01 = passes_900INVM9999_AJ30s6_AJ20s6(jets01)
+            emul_10 = passes_900INVM9999_AJ30s6_AJ20s6(jets10)
+            print 'emulation output: 01 ',emul_01[0],' 10 ',emul_10[0]
+            if emul_01[0]!=emul_10[0]:
+                 print 'emulation of 900INVM9999_AJ30s6_AJ20s6 changes when swapping crate 0 w/ crate 1 <<<<<<<<<<<'
+                 print 'normal  order: ',emul_01[0],' largest mass ',emul_01[1]
+                 print 'swapped order: ',emul_10[0],' largest mass ',emul_10[1]
+            iEntry = event_list.Next()
     out_filename = ('miss_vs_njets_no_ovf.root' if options.skip_overflow else
                     'miss_vs_njets.root')
     out_file = R.TFile(out_filename, 'recreate')
